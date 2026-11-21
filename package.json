@@ -1,0 +1,21 @@
+{
+  "name": "stock",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": "22.22.0"
+  },
+  "scripts": {
+    "codegen": "cd apps/api && go run ./cmd/codegen",
+    "format": "prettier --write --ignore-unknown .",
+    "format:check": "prettier --check --ignore-unknown .",
+    "verify:api": "cd apps/api && test -z \"$(gofmt -l .)\" && go vet ./... && go build ./...",
+    "verify": "pnpm format:check && pnpm verify:api",
+    "test:api": "cd apps/api && go test -coverpkg=./internal/... -coverprofile=../../coverage.out ./internal/..."
+  },
+  "devDependencies": {
+    "lefthook": "2.1.10",
+    "prettier": "3.9.6"
+  }
+}

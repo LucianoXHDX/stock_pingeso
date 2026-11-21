@@ -1,0 +1,16 @@
+# Secretos locales: nunca se commitean
+.env
+.env.*
+!.env.example
+
+# Dependencias y artefactos
+node_modules/
+coverage/
+coverage.out
+dist/
+*.bak
+
+# Editor / sistema
+.idea/
+.vscode/
+.DS_Store

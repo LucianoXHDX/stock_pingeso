@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+contracts/openapi.yaml
+apps/api/internal/repository
+coverage
+node_modules
