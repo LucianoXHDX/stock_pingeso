@@ -2,6 +2,6 @@ module stock
 
 go 1.26.0
 
-toolchain go1.26.5
+toolchain go1.26.11
 
 require github.com/danielgtaylor/huma/v2 v2.34.1
