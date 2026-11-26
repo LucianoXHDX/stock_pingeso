@@ -46,7 +46,7 @@ jobs:
       - run: cd apps/api && go mod verify
       - run: pnpm verify
       - name: Validar el servidor web
-        run: cd apps/web/spa-server && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
+        run: cd apps/web/spa-server && test -z "$(gofmt -l .)" && go vet ./... && go test -coverprofile=coverage.out ./... && go build ./...
       - name: Contratos y clientes reproducibles
         run: make generate clients && pnpm codegen && git diff --exit-code
       - name: Contrato compatible con la base
@@ -188,6 +188,10 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
         with:
           go-version-file: apps/api/go.mod
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+        with:
+          cosign-release: ${{ env.COSIGN_VERSION }}
       - name: Publicar, firmar y adjuntar trazabilidad sin reconstruir las imágenes
         if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
         env:
@@ -195,7 +199,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
           REGISTRY_OWNER: ${{ github.repository_owner }}
         run: |
-          go install github.com/sigstore/cosign/v3/cmd/cosign@${COSIGN_VERSION}
           propietario="${REGISTRY_OWNER,,}"
           etiqueta="${GITHUB_SHA::7}"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

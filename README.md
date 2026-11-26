@@ -194,8 +194,8 @@ El estado verificable y las tareas externas se registran en
 un pipeline ni un Quality Gate ejecutados con éxito.
 
 La integración unificada actualiza el toolchain e imágenes base de Go a **1.26.11**
-(digest fijado `sha256:23f198931d4bd83b4f5a613bd75656257ae8bf832dcbc2db80e1050b5219ca2a`)
-para resolver los hallazgos de `stdlib 1.26.5`. Persisten bloqueos externos pendientes de
-coordinación en Vite 8.1.5, Faker transitivo de Prism y el módulo independiente de goose
-3.24.1; véase [docs/verificacion.md](docs/verificacion.md). El pipeline mantiene todos los
-controles activos.
+(digest fijado `sha256:23f198931d4bd83b4f5a613bd75656257ae8bf832dcbc2db80e1050b5219ca2a`),
+`vite` a **8.1.6**, el override `@faker-js/faker` a **10.5.0** y compila `goose v3.24.1`
+desde `apps/api/go.mod` con `-mod=readonly`; véase
+[docs/verificacion.md](docs/verificacion.md). El pipeline mantiene todos los controles
+activos.

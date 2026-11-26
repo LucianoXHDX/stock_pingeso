@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"os"
 	"os/signal"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -68,35 +68,19 @@ func observar(handler http.Handler, logger *slog.Logger) http.Handler {
 	})
 }
 
-func main() {
-	salud := flag.Bool("healthcheck", false, "comprueba la salud del servidor")
-	flag.Parse()
-	if *salud {
-		cliente := &http.Client{Timeout: 3 * time.Second}
-		respuesta, err := cliente.Get("http://127.0.0.1:8080/healthz")
-		if err != nil {
-			os.Exit(1)
-		}
-		defer respuesta.Body.Close()
-		if respuesta.StatusCode != http.StatusOK {
-			os.Exit(1)
-		}
-		return
-	}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("servicio", "stock-web", "version", version)
-	backend, err := url.Parse(os.Getenv("BACKEND_URL"))
+func validarBackend(raw string) (*url.URL, error) {
+	backend, err := url.Parse(raw)
 	if err != nil || backend == nil || backend.Host == "" || (backend.Scheme != "http" && backend.Scheme != "https") || backend.User != nil || backend.RawQuery != "" || backend.Fragment != "" {
-		logger.Error("BACKEND_URL debe ser una URL HTTP válida sin credenciales, consulta ni fragmento")
-		os.Exit(1)
+		return nil, errors.New("BACKEND_URL debe ser una URL HTTP válida sin credenciales, consulta ni fragmento")
 	}
-	raiz := os.Getenv("SPA_DIRECTORY")
-	if raiz == "" {
-		raiz = "/srv"
+	return backend, nil
+}
+
+func nuevoManejador(sistema fs.FS, backend *url.URL, logger *slog.Logger) (http.Handler, error) {
+	if _, err := fs.Stat(sistema, "index.html"); err != nil {
+		return nil, errors.New("no se encuentra la aplicación web compilada")
 	}
-	if _, err := os.Stat(filepath.Join(raiz, "index.html")); err != nil {
-		logger.Error("no se encuentra la aplicación web compilada")
-		os.Exit(1)
-	}
+	archivos := http.FileServerFS(sistema)
 	proxy := httputil.NewSingleHostReverseProxy(backend)
 	proxy.Transport = &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -131,23 +115,70 @@ func main() {
 			return
 		}
 		ruta := path.Clean("/" + r.URL.Path)
-		archivo := filepath.Join(raiz, filepath.FromSlash(strings.TrimPrefix(ruta, "/")))
-		info, err := os.Stat(archivo)
-		if strings.HasPrefix(ruta, "/assets/") {
+		nombre := strings.TrimPrefix(ruta, "/")
+		if ruta == "/assets" || strings.HasPrefix(ruta, "/assets/") {
+			if !fs.ValidPath(nombre) {
+				http.NotFound(w, r)
+				return
+			}
+			info, err := fs.Stat(sistema, nombre)
 			if err != nil || info.IsDir() {
 				http.NotFound(w, r)
 				return
 			}
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		} else {
-			w.Header().Set("Cache-Control", "no-cache")
-			if err != nil || info.IsDir() {
-				archivo = filepath.Join(raiz, "index.html")
+			archivos.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-cache")
+		if nombre != "" && nombre != "index.html" && fs.ValidPath(nombre) {
+			if info, err := fs.Stat(sistema, nombre); err == nil && !info.IsDir() {
+				archivos.ServeHTTP(w, r)
+				return
 			}
 		}
-		http.ServeFile(w, r, archivo)
+		http.ServeFileFS(w, r, sistema, "index.html")
 	})
-	servidor := &http.Server{Addr: ":8080", Handler: observar(manejador, logger), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
+	return observar(manejador, logger), nil
+}
+
+func main() {
+	salud := flag.Bool("healthcheck", false, "comprueba la salud del servidor")
+	flag.Parse()
+	if *salud {
+		cliente := &http.Client{Timeout: 3 * time.Second}
+		respuesta, err := cliente.Get("http://127.0.0.1:8080/healthz")
+		if err != nil {
+			os.Exit(1)
+		}
+		defer respuesta.Body.Close()
+		if respuesta.StatusCode != http.StatusOK {
+			os.Exit(1)
+		}
+		return
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("servicio", "stock-web", "version", version)
+	backend, err := validarBackend(os.Getenv("BACKEND_URL"))
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	raiz := os.Getenv("SPA_DIRECTORY")
+	if raiz == "" {
+		raiz = "/srv"
+	}
+	directorio, err := os.OpenRoot(raiz)
+	if err != nil {
+		logger.Error("no se puede abrir el directorio de la aplicación web")
+		os.Exit(1)
+	}
+	defer directorio.Close()
+	handler, err := nuevoManejador(directorio.FS(), backend, logger)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	servidor := &http.Server{Addr: ":8080", Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 	ctx, detener := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer detener()
 	go func() {

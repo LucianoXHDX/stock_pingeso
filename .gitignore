@@ -9,6 +9,7 @@ coverage.out
 .coverage/
 .tmp/
 bin/
+*.exe
 *.test
 *.log
 .scannerwork/

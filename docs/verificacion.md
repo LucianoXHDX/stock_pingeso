@@ -1,12 +1,13 @@
 # Verificación local
 
 Fecha: 19 de noviembre de 2026 (actualizado tras la unificación con el repositorio de
-Luciano: Go actualizado a **1.26.11** con digest fijado para resolver las vulnerabilidades
-de `stdlib 1.26.5`, y `sonar-project.properties` vinculado a `LucianoXHDX_stock_pingeso`).
-La implementación y sus pruebas funcionales pasan. **Pendiente de re-verificar en CI/Docker
-tras el bump a Go 1.26.11; persisten bloqueos de seguridad en Vite 8.1.5, Faker transitivo
-de Prism y el módulo independiente de goose 3.24.1.** No se bajaron umbrales ni se
-agregaron excepciones.
+Luciano y remediación del PR #3 en CI):
+
+- Go actualizado a **1.26.11** con digest fijado para resolver las vulnerabilidades de `stdlib 1.26.5` (`govulncheck`: 0 hallazgos).
+- `vite` actualizado a **8.1.6** y override `'@faker-js/faker': 10.5.0` en `pnpm-workspace.yaml` para resolver los 2 hallazgos HIGH de `pnpm audit --audit-level high`.
+- `apps/api/Dockerfile.migrate` compila `goose v3.24.1` con `-mod=readonly` desde `apps/api/go.mod` + `go.sum` (eliminando `docker:S8545`, `docker:S6504` y los CVE de dependencias antiguas del módulo independiente de goose).
+- `apps/web/spa-server` migrado a `os.OpenRoot` + `http.FileServerFS` / `http.ServeFileFS` con pruebas unitarias y cobertura propia (eliminando `gosecurity:S2083` y `S6549`).
+- `sonar-project.properties` vinculado a `LucianoXHDX_stock_pingeso` (`lucianoxhdx`) excluyendo archivos generados, mocks de desarrollo y scripts auxiliares.
 
 Estos resultados provienen de ejecuciones locales. El proyecto SonarQube, sus secretos
 y el pipeline remoto aún deben configurarse; no se declara un Quality Gate aprobado.
