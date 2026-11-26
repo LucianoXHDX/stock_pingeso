@@ -222,4 +222,113 @@ describe('microcomponentes autocontenidos de STOCK', () => {
     expect(contenedor.textContent).toContain('Necesitas el permiso stock:consultar')
     expect(solicitudes).toBe(0)
   })
+
+  it('permite buscar por UUID, actualizar y paginar existencias', async () => {
+    servidor.use(
+      http.get('*/api/v1/existencias', ({ request }) => {
+        const url = new URL(request.url)
+        const desde = Number(url.searchParams.get('desplazamiento') || 0)
+        return HttpResponse.json({
+          datos: [
+            {
+              producto_id: productoDemo,
+              cantidad: desde === 0 ? 128 : 55,
+              version: 3,
+              actualizado_en: '2026-11-19T14:00:00Z',
+            },
+          ],
+          total: 15,
+        })
+      }),
+    )
+    await montar(<ConsultaStock {...propiedades} />)
+    await esperar(() => contenedor.textContent?.includes('Página 1') === true)
+    await pulsar('Siguiente')
+    await esperar(() => contenedor.textContent?.includes('Página 2') === true)
+    expect(contenedor.textContent).toContain('55')
+    await pulsar('Anterior')
+    await esperar(() => contenedor.textContent?.includes('Página 1') === true)
+    await pulsar('Actualizar')
+    await esperar(() => contenedor.textContent?.includes('128') === true)
+    await completar('Buscar por identificador de producto', productoDemo)
+    await enviar()
+    await esperar(
+      () => contenedor.textContent?.includes('1 producto encontrado') === true,
+    )
+  })
+
+  it('recupera el historial tras un error y pagina movimientos', async () => {
+    let intentos = 0
+    servidor.use(
+      http.get('*/api/v1/movimientos', ({ request }) => {
+        intentos += 1
+        if (intentos === 1) {
+          return HttpResponse.json(
+            { detail: 'Error temporal en historial.' },
+            { status: 503 },
+          )
+        }
+        const url = new URL(request.url)
+        const desde = Number(url.searchParams.get('desplazamiento') || 0)
+        return HttpResponse.json({
+          datos: [
+            {
+              id: `bbbbbbbb-bbbb-4bbb-8bbb-00000000000${desde === 0 ? '1' : '2'}`,
+              producto_id: productoDemo,
+              tipo: desde === 0 ? 'entrada' : 'salida',
+              cantidad: desde === 0 ? 10 : 4,
+              saldo_anterior: 20,
+              saldo_posterior: desde === 0 ? 30 : 16,
+              motivo: desde === 0 ? 'Página inicial' : 'Segunda página',
+              referencia: 'REF-PAG',
+              actor_id: '55555555-5555-4555-8555-555555555555',
+              creado_en: '2026-11-19T14:00:00Z',
+            },
+          ],
+          total: 15,
+        })
+      }),
+    )
+    await montar(<HistorialStock {...propiedades} />)
+    await esperar(() => !!contenedor.querySelector('[role="alert"]'))
+    expect(contenedor.textContent).toContain('Error temporal en historial.')
+    await pulsar('Reintentar historial')
+    await esperar(() => contenedor.textContent?.includes('Página inicial') === true)
+    await pulsar('Siguiente')
+    await esperar(() => contenedor.textContent?.includes('Segunda página') === true)
+    await pulsar('Anterior')
+    await esperar(() => contenedor.textContent?.includes('Página inicial') === true)
+    await pulsar('Actualizar')
+    await esperar(
+      () => contenedor.textContent?.includes('15 movimientos registrados') === true,
+    )
+  })
+
+  it('valida entradas del formulario de movimiento y bloquea sin permisos', async () => {
+    await montar(<MovimientoStock apiBaseUrl="http://localhost" permisos={[]} />)
+    expect(contenedor.textContent).toContain(
+      'Necesitas permiso de operación o administración',
+    )
+    await act(async () => {
+      raiz?.unmount()
+    })
+    contenedor.remove()
+
+    await montar(<MovimientoStock {...propiedades} />)
+    await completar('Identificador de producto', productoDemo)
+    await completar('Cantidad', '0')
+    await completar('Motivo', 'Cantidad inválida')
+    await completar('Referencia', 'REF-TEST')
+    await enviar()
+    await esperar(() => !!contenedor.querySelector('[role="alert"]'))
+    expect(contenedor.textContent).toContain('cantidad entera válida')
+
+    await act(async () => {
+      ;(contenedor.querySelector('input[value="ajuste"]') as HTMLInputElement).click()
+    })
+    await completar('Saldo final', '10')
+    await completar('Versión actual', '')
+    await enviar()
+    await esperar(() => contenedor.textContent?.includes('versión actual') === true)
+  })
 })
