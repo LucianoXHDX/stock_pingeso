@@ -1,10 +1,12 @@
-
+# syntax=docker/dockerfile:1.7
 FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine3.23@sha256:23f198931d4bd83b4f5a613bd75656257ae8bf832dcbc2db80e1050b5219ca2a AS build
 WORKDIR /src
 COPY apps/api/go.mod apps/api/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY apps/api/ ./
-ARG TARGETOS TARGETARCH VERSION=dev
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
@@ -17,4 +19,5 @@ WORKDIR /app
 COPY --from=build --chown=nonroot:nonroot /out/stock /app/stock
 USER nonroot:nonroot
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/app/stock", "-healthcheck"]
 ENTRYPOINT ["/app/stock"]

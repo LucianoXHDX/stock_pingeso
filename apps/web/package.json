@@ -1,0 +1,71 @@
+{
+  "name": "@pingeso/stock-ui",
+  "version": "1.0.0",
+  "description": "Microcomponentes React del módulo STOCK, grupo 8",
+  "type": "module",
+  "contractVersion": "1.0.0",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist-paquete"
+  ],
+  "main": "./dist-paquete/stock-ui.js",
+  "types": "./dist-paquete/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist-paquete/index.d.ts",
+      "import": "./dist-paquete/stock-ui.js"
+    },
+    "./estilos.css": "./dist-paquete/stock-ui.css"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5120",
+    "build": "tsc --noEmit && vite build",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json && node ../../scripts/copiar-tipos.mjs",
+    "prepublishOnly": "pnpm build:lib",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage --pool=threads --maxWorkers=1",
+    "test:watch": "vitest",
+    "preview": "vite preview --host 127.0.0.1 --port 5120"
+  },
+  "peerDependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "dependencies": {
+    "@base-ui/react": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "openapi-fetch": "catalog:",
+    "react-hook-form": "catalog:",
+    "react-router": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@stoplight/prism-cli": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "jsdom": "catalog:",
+    "msw": "catalog:",
+    "openapi-typescript": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

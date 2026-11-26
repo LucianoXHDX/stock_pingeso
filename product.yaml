@@ -1,0 +1,37 @@
+nombre: stock
+version: 1.0.0
+grupo: 8
+descripcion: Existencias, entradas, salidas, ajustes e historial de inventario.
+numero_servicio:
+  valor: 2
+  estado: provisional-segun-imagen
+  pendiente: Confirmar en el documento oficial de componentes.
+puertos_locales:
+  web: 5120
+  api: 5121
+contrato:
+  archivo: contracts/openapi.yaml
+  version: 1.0.0
+  formato: OpenAPI 3.1
+dependencias:
+  productos:
+    grupo: 3
+    variable: PRODUCTOS_URL
+    contrato: contracts/externos/productos.yaml
+    estado_contrato: propuesta-pendiente-de-proveedor
+  identidad:
+    variables: [AUTH_JWKS_URL, AUTH_ISSUER, AUTH_AUDIENCE]
+    estado_contrato: claims-y-permisos-propuestos-pendientes-de-proveedor
+microcomponentes:
+  paquete: '@pingeso/stock-ui'
+  namespace_estado: pendiente-de-confirmar
+  componentes: [ConsultaStock, MovimientoStock, HistorialStock]
+datos_propios: [existencias, movimientos, auditoria]
+permisos: ['stock:consultar', 'stock:operar', 'stock:administrar']
+salud:
+  vida: /healthz
+  disponibilidad: /readyz
+documentacion: /api/docs
+responsables:
+  equipo: Grupo 8
+  persona: pendiente-de-completar-por-el-equipo

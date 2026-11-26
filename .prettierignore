@@ -1,5 +1,11 @@
+node_modules
 pnpm-lock.yaml
+apps/web/dist
+apps/web/dist-paquete
+apps/web/coverage
+apps/web/public/mockServiceWorker.js
+apps/web/src/generado
 contracts/openapi.yaml
 apps/api/internal/repository
-coverage
-node_modules
+modulo
+.idea

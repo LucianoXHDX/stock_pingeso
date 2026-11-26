@@ -1,0 +1,5 @@
+package: productos
+generate:
+  models: true
+  client: true
+output: internal/productos/cliente.gen.go

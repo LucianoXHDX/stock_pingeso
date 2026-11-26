@@ -1,21 +1,29 @@
 {
   "name": "stock",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.13.1",
   "engines": {
-    "node": "22.22.0"
+    "node": "22.22.0",
+    "pnpm": "10.13.1"
   },
   "scripts": {
-    "codegen": "cd apps/api && go run ./cmd/codegen",
-    "format": "prettier --write --ignore-unknown .",
-    "format:check": "prettier --check --ignore-unknown .",
-    "verify:api": "cd apps/api && test -z \"$(gofmt -l .)\" && go vet ./... && go build ./...",
-    "verify": "pnpm format:check && pnpm verify:api",
-    "test:api": "cd apps/api && go test -coverpkg=./internal/... -coverprofile=../../coverage.out ./internal/..."
+    "dev": "pnpm --filter @pingeso/stock-ui dev",
+    "build": "pnpm --filter @pingeso/stock-ui build && pnpm --filter @pingeso/stock-ui build:lib",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "oxlint --deny-warnings && node scripts/verificar-limites.mjs",
+    "typecheck": "pnpm --filter @pingeso/stock-ui typecheck",
+    "test": "pnpm --filter @pingeso/stock-ui test",
+    "test:api": "node scripts/go.mjs test ./...",
+    "test:e2e:api": "node scripts/test-e2e.mjs",
+    "codegen": "node scripts/codegen.mjs",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:api && pnpm build"
   },
   "devDependencies": {
-    "lefthook": "2.1.10",
-    "prettier": "3.9.6"
+    "lefthook": "catalog:",
+    "oxlint": "catalog:",
+    "prettier": "catalog:",
+    "prettier-plugin-tailwindcss": "catalog:"
   }
 }

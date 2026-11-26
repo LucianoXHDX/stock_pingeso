@@ -1,8 +1,16 @@
 name: ci
+
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: Publicar las imágenes verificadas y el paquete de esta versión
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -12,10 +20,16 @@ env:
   GOVULNCHECK_VERSION: v1.9.0
   OASDIFF_VERSION: v1.35.0
   DOCKLE_VERSION: v0.4.15
+  COSIGN_VERSION: v3.1.4
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   calidad:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,12 +45,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: cd apps/api && go mod verify
       - run: pnpm verify
-      - run: pnpm codegen && git diff --exit-code
-      - name: contrato compatible con main
+      - name: Validar el servidor web
+        run: cd apps/web/spa-server && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
+      - name: Contratos y clientes reproducibles
+        run: make generate clients && pnpm codegen && git diff --exit-code
+      - name: Contrato compatible con la base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
         run: |
-          git show origin/main:contracts/openapi.yaml > /tmp/base.yaml
-          go run github.com/oasdiff/oasdiff@${OASDIFF_VERSION} breaking /tmp/base.yaml contracts/openapi.yaml --fail-on ERR
-      - run: pnpm test:api
+          if git cat-file -e "${BASE_SHA}:contracts/openapi.yaml" 2>/dev/null; then
+            git show "${BASE_SHA}:contracts/openapi.yaml" > /tmp/base.yaml
+            go run github.com/oasdiff/oasdiff@${OASDIFF_VERSION} breaking /tmp/base.yaml contracts/openapi.yaml --fail-on ERR
+          else
+            echo "Primer contrato: no existe contrato previo en la base. Se establece esta versión como referencia."
+          fi
+      - name: E2E con PostgreSQL real y cobertura - UTC
+        run: pnpm test:e2e:api
+        env:
+          TZ: UTC
+      - name: E2E con PostgreSQL real y cobertura - Auckland
+        run: pnpm test:e2e:api
+        env:
+          TZ: Pacific/Auckland
+      - name: Exigir reportes reales de cobertura
+        run: test -s coverage.out && test -s apps/web/coverage/lcov.info
       - uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -47,10 +79,16 @@ jobs:
 
   seguridad:
     runs-on: ubuntu-24.04
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: apps/api/go.mod
@@ -58,10 +96,23 @@ jobs:
         env:
           GITLEAKS_VERSION: 8.30.1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: cd apps/api && go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level high
+      - name: Vulnerabilidades alcanzables en la API
+        run: cd apps/api && go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
+      - name: Vulnerabilidades alcanzables en el servidor web
+        run: cd apps/web/spa-server && go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
       - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0 (hadolint v2.15.1)
         with:
-          recursive: true
+          dockerfile: apps/api/Dockerfile
+          failure-threshold: error
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0 (hadolint v2.15.1)
+        with:
+          dockerfile: apps/api/Dockerfile.migrate
+          failure-threshold: error
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0 (hadolint v2.15.1)
+        with:
+          dockerfile: apps/web/Dockerfile
           failure-threshold: error
       - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
@@ -70,19 +121,92 @@ jobs:
           scanners: vuln,misconfig,secret
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: "1"
+          exit-code: '1'
 
   imagen:
     needs: [calidad, seguridad]
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build --pull -f apps/api/Dockerfile --build-arg VERSION=${GITHUB_SHA::7} -t api:ci .
+      - name: Construir una sola vez las imágenes de esta versión
+        run: |
+          docker build --pull -f apps/api/Dockerfile --build-arg VERSION=${GITHUB_SHA::7} -t api:ci .
+          docker build --pull -f apps/api/Dockerfile.migrate -t migrate:ci .
+          docker build --pull -f apps/web/Dockerfile --build-arg VERSION=${GITHUB_SHA::7} -t web:ci .
       - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           version: ${{ env.TRIVY_VERSION }}
           image-ref: api:ci
+          scanners: vuln,secret
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: "1"
-      - run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock goodwithtech/dockle:${DOCKLE_VERSION} --exit-code 1 --exit-level warn api:ci
+          exit-code: '1'
+      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: migrate:ci
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: web:ci
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Dockle en las tres imágenes
+        run: |
+          for imagen in api migrate web; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock goodwithtech/dockle:${DOCKLE_VERSION} --exit-code 1 --exit-level warn "${imagen}:ci"
+          done
+      - name: Generar SBOM de las imágenes verificadas
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p release
+          for imagen in api migrate web; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/release:/salida" aquasec/trivy:${TRIVY_VERSION#v} image --format cyclonedx --output "/salida/${imagen}.cdx.json" "${imagen}:ci"
+          done
+          cp contracts/openapi.yaml release/openapi.yaml
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@pingeso'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+        with:
+          go-version-file: apps/api/go.mod
+      - name: Publicar, firmar y adjuntar trazabilidad sin reconstruir las imágenes
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ github.token }}
+          REGISTRY_OWNER: ${{ github.repository_owner }}
+        run: |
+          go install github.com/sigstore/cosign/v3/cmd/cosign@${COSIGN_VERSION}
+          propietario="${REGISTRY_OWNER,,}"
+          etiqueta="${GITHUB_SHA::7}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for imagen in api migrate web; do
+            destino="ghcr.io/${propietario}/stock-${imagen}:${etiqueta}"
+            docker tag "${imagen}:ci" "$destino"
+            docker push "$destino"
+            digest="$(docker inspect --format='{{index .RepoDigests 0}}' "$destino")"
+            cosign sign --yes "$digest"
+          done
+          pnpm install --frozen-lockfile
+          pnpm --filter @pingeso/stock-ui build:lib
+          pnpm --filter @pingeso/stock-ui publish --no-git-checks
+          gh release create "stock-${etiqueta}" release/* --target "$GITHUB_SHA" --title "Stock ${etiqueta}" --generate-notes
