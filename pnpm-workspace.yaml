@@ -21,7 +21,7 @@ catalog:
   openapi-typescript: 7.13.0
   msw: 2.15.0
   vitest: 4.1.10
-  '@vitest/coverage-v8': 4.1.10
+  '@vitest/coverage-v8': 5.1.1
   '@playwright/test': 1.62.0
   '@stoplight/prism-cli': 5.16.0
   oxlint: 1.75.0
