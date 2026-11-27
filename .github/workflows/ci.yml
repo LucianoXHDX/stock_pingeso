@@ -39,7 +39,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: apps/api/go.mod
       - run: pnpm install --frozen-lockfile
@@ -89,7 +89,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: apps/api/go.mod
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
@@ -184,7 +184,7 @@ jobs:
           cache: pnpm
           registry-url: https://npm.pkg.github.com
           scope: '@pingeso'
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
         with:
           go-version-file: apps/api/go.mod
