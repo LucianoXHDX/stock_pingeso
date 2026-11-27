@@ -12,7 +12,7 @@ COPY apps/web/ apps/web/
 COPY contracts/ contracts/
 RUN pnpm --filter @pingeso/stock-ui build
 
-FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine3.23@sha256:23f198931d4bd83b4f5a613bd75656257ae8bf832dcbc2db80e1050b5219ca2a AS server-build
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.23@sha256:f70850ef6ce341e8b6427f677049145d63c0b7ce002d4d7e3d464828b1b96dcd AS server-build
 WORKDIR /src
 COPY apps/web/spa-server/ ./
 ARG TARGETOS
