@@ -2,74 +2,96 @@ package main
 
 import (
 	"context"
-	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
-	"stock/internal/api"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pingeso/stock/apps/api/internal/api"
+	"github.com/pingeso/stock/apps/api/internal/auth"
+	"github.com/pingeso/stock/apps/api/internal/config"
+	"github.com/pingeso/stock/apps/api/internal/productos"
+	"github.com/pingeso/stock/apps/api/internal/service"
+	"github.com/pingeso/stock/apps/api/internal/store"
 )
 
-// version se inyecta al compilar con -ldflags "-X main.version=...".
 var version = "dev"
 
-const puertoPorDefecto = "8080"
-
-const entornoPorDefecto = "dev"
-
-const tiempoCierre = 10 * time.Second
-
-// variable lee una variable de entorno. Pendiente: reemplazar por el paquete config.
-func variable(nombre, porDefecto string) string {
-	if valor := os.Getenv(nombre); valor != "" {
-		return valor
-	}
-	return porDefecto
-}
-
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("servicio", "stock", "version", version)
-	slog.SetDefault(log)
-
-	if err := ejecutar(log); err != nil {
-		log.Error("el servicio terminó con error", "error", err)
+	if len(os.Args) == 2 && os.Args[1] == "-healthcheck" {
+		cliente := http.Client{Timeout: 2 * time.Second}
+		respuesta, err := cliente.Get("http://127.0.0.1:8080/healthz")
+		if err != nil {
+			os.Exit(1)
+		}
+		defer respuesta.Body.Close()
+		if respuesta.StatusCode != http.StatusOK {
+			os.Exit(1)
+		}
+		return
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	if err := ejecutar(logger); err != nil {
+		logger.Error("No se pudo iniciar STOCK", "causa", err.Error())
 		os.Exit(1)
 	}
 }
 
-func ejecutar(log *slog.Logger) error {
-	puerto := variable("API_PORT", puertoPorDefecto)
-
-	mux := http.NewServeMux()
-	api.NuevaAPI(mux, api.Opciones{Version: version, Entorno: variable("API_ENV", entornoPorDefecto)})
-
-	servidor := &http.Server{}
-	servidor.Addr = ":" + puerto
-	servidor.Handler = mux
-	servidor.ReadHeaderTimeout = 5 * time.Second
-
-	ctx, parar := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer parar()
-
-	errores := make(chan error, 1)
-	go func() {
-		errores <- servidor.ListenAndServe()
-	}()
-	log.Info("servicio iniciado", "puerto", puerto)
-
-	select {
-	case err := <-errores:
-		if !errors.Is(err, http.ErrServerClosed) {
-			return err
-		}
-	case <-ctx.Done():
-		log.Info("cerrando el servicio")
+func ejecutar(logger *slog.Logger) error {
+	c, err := config.Cargar()
+	if err != nil {
+		return err
 	}
-
-	ctxCierre, cancelar := context.WithTimeout(context.Background(), tiempoCierre)
+	ctx, cancelar := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelar()
-	return servidor.Shutdown(ctxCierre)
+	// Permite que el proceso E2E cierre limpiamente el binario también en Windows
+	// y que Go escriba la cobertura. No se habilita en dev ni prod.
+	if c.Ambiente == "test" && os.Getenv("STOCK_E2E_STDIN") == "1" {
+		go func() { _, _ = io.Copy(io.Discard, os.Stdin); cancelar() }()
+	}
+	pool, err := pgxpool.New(ctx, c.BaseDatos)
+	if err != nil {
+		return configError("DATABASE_URL inválida")
+	}
+	defer pool.Close()
+	ctxInicio, cancelarInicio := context.WithTimeout(ctx, 5*time.Second)
+	err = pool.Ping(ctxInicio)
+	cancelarInicio()
+	if err != nil {
+		return configError("PostgreSQL no disponible")
+	}
+	validador, err := auth.Nuevo(ctx, c.JWKS, c.Emisor, c.Audiencia)
+	if err != nil {
+		return err
+	}
+	servicio := service.Nuevo(store.Nuevo(pool), productos.Nuevo(c.Productos))
+	handler, _ := api.Nuevo(servicio, api.Opciones{Ambiente: c.Ambiente, Cookie: c.Cookie, Frontend: c.Frontend, Version: version, Validador: validador, Listo: func(ctx context.Context) error {
+		contexto, cancelar := context.WithTimeout(ctx, 2*time.Second)
+		defer cancelar()
+		return pool.Ping(contexto)
+	}})
+	servidor := &http.Server{Addr: ":" + c.Puerto, Handler: api.Observar(handler, logger, version), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
+	terminado := make(chan error, 1)
+	go func() { terminado <- servidor.ListenAndServe() }()
+	logger.Info("STOCK iniciado", "servicio", "stock", "version", version, "puerto", c.Puerto)
+	select {
+	case err := <-terminado:
+		if err == http.ErrServerClosed {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		contexto, cancelar := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelar()
+		return servidor.Shutdown(contexto)
+	}
 }
+
+type configError string
+
+func (e configError) Error() string { return string(e) }

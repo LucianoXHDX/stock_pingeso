@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info:
+  title: Productos - propuesta mínima de integración STOCK
+  version: 0.1.0
+  description: >-
+    PROPUESTA, no contrato oficial del grupo 3. Los archivos iniciales no incluyen
+    el contrato de Productos. Reemplazar por su contrato publicado y regenerar
+    el cliente cuando se acuerde la integración. STOCK solo consulta existencia
+    del producto; no crea ni modifica productos.
+paths:
+  /api/v1/productos/{producto_id}:
+    get:
+      operationId: obtenerProducto
+      summary: Comprobar existencia de un producto
+      security:
+        - bearer: []
+      parameters:
+        - name: producto_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: X-Request-Id
+          in: header
+          schema: { type: string, maxLength: 128 }
+      responses:
+        '200':
+          description: Producto existente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: string, format: uuid }
+        '404':
+          description: Producto inexistente
+        '401':
+          description: Sesión inválida
+        '403':
+          description: Acceso no permitido
+        '503':
+          description: Proveedor no disponible
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
