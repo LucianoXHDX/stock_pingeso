@@ -24,7 +24,7 @@ catalog:
   '@vitest/coverage-v8': 4.1.10
   '@playwright/test': 1.62.0
   '@stoplight/prism-cli': 5.16.0
-  oxlint: 1.75.0
+  oxlint: 1.95.0
   prettier: 3.9.6
   prettier-plugin-tailwindcss: 0.8.1
   lefthook: 2.1.10
