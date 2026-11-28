@@ -83,6 +83,17 @@ independiente de esa configuración.
 `docker compose down` detiene los servicios y conserva la base en el volumen nombrado.
 Los puertos se publican sólo en la interfaz local. PostgreSQL no publica un puerto al host.
 
+### Sin Identidad ni Productos: mocks locales
+
+Mientras los grupos proveedores no publiquen sus servicios, `pnpm docker:mocks` levanta
+el stack completo con un mock de Identidad y Productos (`docker-compose.mocks.yaml`).
+Después de completar las variables de PostgreSQL en `.env`, abrir
+`http://localhost:5129`, elegir un perfil de prueba y usar `http://localhost:5120`.
+Detalles en [docs/mocks.md](docs/mocks.md). Sólo para desarrollo local.
+
+Para que otros grupos prueben contra Stock sin levantar nada más, `pnpm mock:stock`
+simula la API con Prism a partir de `contracts/openapi.yaml` en `http://127.0.0.1:5122`.
+
 ## Contrato y operación
 
 El contrato generado es [contracts/openapi.yaml](contracts/openapi.yaml), OpenAPI 3.1.
@@ -174,6 +185,9 @@ del comando; en PowerShell: `$env:TZ='UTC'; pnpm test:e2e:api`.
 [.github/workflows/ci.yml](.github/workflows/ci.yml) incluye los checks `calidad`,
 `seguridad` e `imagen`: formato, límites de componentes, tipos, build, E2E, contrato,
 SonarQube y Quality Gate, Gitleaks, govulncheck, audit, Hadolint, Trivy y Dockle.
+Los resultados de Trivy (filesystem y las imágenes api, migrate y web) también se suben en
+formato SARIF a la pestaña **Security → Code scanning** del repositorio. Ese reporte incluye
+todas las severidades; el bloqueo sigue siendo HIGH/CRITICAL con corrección disponible.
 No se deshabilita SonarQube cuando faltan secretos: deben configurarse para completar CI.
 
 La publicación es una ejecución manual de `ci` en `main` con `publicar=true`. El mismo job

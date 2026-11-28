@@ -1,0 +1,36 @@
+# Override SOLO para desarrollo local: reemplaza Identidad (grupo 6) y Productos (grupo 3)
+# por un mock, para levantar el stack completo sin depender de otros grupos.
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.mocks.yaml up -d --build
+#   (o: pnpm docker:mocks)
+#
+# Luego abrir http://localhost:5129 para iniciar una sesión de prueba.
+# No usar fuera del ambiente local: las llaves y sesiones son de prueba.
+services:
+  mocks:
+    image: stock-mocks:local
+    build:
+      context: .
+      dockerfile: apps/mocks/Dockerfile
+    environment:
+      MOCK_EMISOR: http://identidad-mock
+      MOCK_AUDIENCIA: stock
+      MOCK_COOKIE: ${SESSION_COOKIE_NAME:-sesion}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5120}
+      TZ: ${TZ:-America/Santiago}
+    ports:
+      - 127.0.0.1:5129:8080
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+  backend:
+    environment:
+      AUTH_JWKS_URL: http://mocks:8080/.well-known/jwks.json
+      AUTH_ISSUER: http://identidad-mock
+      AUTH_AUDIENCE: stock
+      PRODUCTOS_URL: http://mocks:8080
+    depends_on:
+      mocks:
+        condition: service_healthy

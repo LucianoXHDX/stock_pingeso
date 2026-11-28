@@ -81,6 +81,8 @@ entre servicios pueden reenviar el JWT como Bearer. El proxy de la app web reenv
 ## Consumidores de STOCK
 
 Copiar el contrato publicado de esta versión, generar el cliente y llamar por REST.
+Mientras no tengan acceso a la API real, pueden simularla con Prism a partir de ese
+contrato (`pnpm mock:stock` en este repo; ver [mocks.md](mocks.md)).
 Mantener `Idempotency-Key` en todos los reintentos de una misma mutación y propagar
 `X-Request-Id`. Ante un 409 por falta de stock, mostrar el rechazo al usuario. Ante un
 409 de versión, volver a consultar antes de proponer otro ajuste. Ante un 503, reintentar

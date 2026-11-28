@@ -80,6 +80,9 @@ jobs:
   seguridad:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -114,13 +117,33 @@ jobs:
         with:
           dockerfile: apps/web/Dockerfile
           failure-threshold: error
-      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+      - name: Trivy filesystem a SARIF (reporte para GitHub Security)
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: fs
+          scanners: vuln,misconfig,secret
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-fs.sarif
+          exit-code: '0'
+      - name: Subir SARIF del filesystem a GitHub Security
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+      - name: Trivy filesystem bloqueante (HIGH/CRITICAL con fix)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           version: ${{ env.TRIVY_VERSION }}
           scan-type: fs
           scanners: vuln,misconfig,secret
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          format: table
           exit-code: '1'
 
   imagen:
@@ -131,6 +154,7 @@ jobs:
       contents: write
       packages: write
       id-token: write
+      security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Construir una sola vez las imágenes de esta versión
@@ -138,6 +162,60 @@ jobs:
           docker build --pull -f apps/api/Dockerfile --build-arg VERSION=${GITHUB_SHA::7} -t api:ci .
           docker build --pull -f apps/api/Dockerfile.migrate -t migrate:ci .
           docker build --pull -f apps/web/Dockerfile --build-arg VERSION=${GITHUB_SHA::7} -t web:ci .
+      - name: Trivy imagen api a SARIF
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: api:ci
+          scanners: vuln,secret
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-api.sarif
+          exit-code: '0'
+      - name: Subir SARIF de la imagen api a GitHub Security
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+        with:
+          sarif_file: trivy-api.sarif
+          category: trivy-imagen-api
+      - name: Trivy imagen migrate a SARIF
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: migrate:ci
+          scanners: vuln,secret
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-migrate.sarif
+          exit-code: '0'
+      - name: Subir SARIF de la imagen migrate a GitHub Security
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+        with:
+          sarif_file: trivy-migrate.sarif
+          category: trivy-imagen-migrate
+      - name: Trivy imagen web a SARIF
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: web:ci
+          scanners: vuln,secret
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-web.sarif
+          exit-code: '0'
+      - name: Subir SARIF de la imagen web a GitHub Security
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
+        with:
+          sarif_file: trivy-web.sarif
+          category: trivy-imagen-web
       - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           version: ${{ env.TRIVY_VERSION }}
@@ -145,6 +223,7 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          format: table
           exit-code: '1'
       - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
@@ -153,6 +232,7 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          format: table
           exit-code: '1'
       - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
@@ -161,6 +241,7 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          format: table
           exit-code: '1'
       - name: Dockle en las tres imágenes
         run: |
