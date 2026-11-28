@@ -17,7 +17,7 @@ workflow, escáner o Quality Gate haya pasado por la sola presencia de su config
 | Errores sin internos              | Respuestas Problem Details y mensajes controlados                 |
 | Configuración validada            | `internal/config`, `.env.example`                                 |
 | Sesión sin almacenamiento web     | Cookie de Identidad, clientes con credenciales                    |
-| Microcomponentes autónomos        | `apps/web/src/componentes`, paquete `@pingeso/stock-ui`           |
+| Microcomponentes autónomos        | `apps/web/src/componentes`, paquete `@pingeso-ejecu/stock-ui`     |
 | Runtime sin root                  | API/web distroless, migraciones UID 65532                         |
 | Bases fijadas por digest          | Tres Dockerfiles y Compose                                        |
 | Migración antes de API            | Dependencias `service_completed_successfully` en Compose          |
@@ -65,7 +65,8 @@ se establecen en el proyecto SonarQube, no se simulan en un archivo local.
 
 - Recibir los contratos oficiales de Productos e Identidad y el documento de componentes;
   confirmar número del servicio, puertos, claims y permisos.
-- Confirmar organización `pingeso`, repositorio y namespace definitivo antes de publicar.
+- Organización confirmada: `PINGESO-EJECU`. El paquete npm es `@pingeso-ejecu/stock-ui` y las imágenes
+  quedan en `ghcr.io/pingeso-ejecu/`. El módulo Go conserva `github.com/pingeso/stock`, que no se publica.
 - Verificar el proyecto SonarCloud `LucianoXHDX_stock_pingeso` (org `lucianoxhdx`), definir código nuevo, configurar el Quality Gate DAS y confirmar `SONAR_TOKEN`/`SONAR_HOST_URL` como GitHub Secrets.
 - Activar la protección de `main`: PR obligatorio, una aprobación y checks requeridos.
 - Verificar permisos de publicación de GHCR/GitHub Packages y OIDC para Cosign.

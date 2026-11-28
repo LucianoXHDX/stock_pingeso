@@ -16,7 +16,7 @@ FROM alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde8
 WORKDIR /app
 COPY --from=build --chmod=0555 /out/goose /app/goose
 COPY --from=build --chmod=0444 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --chmod=0444 apps/api/db/migrations/ /app/db/migrations/
+COPY --chmod=0555 apps/api/db/migrations/ /app/db/migrations/
 USER 65532:65532
 HEALTHCHECK NONE
 ENTRYPOINT ["/app/goose"]

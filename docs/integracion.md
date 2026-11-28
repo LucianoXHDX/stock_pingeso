@@ -4,14 +4,14 @@ La documentación suministrada incluye DAS y la división de grupos, pero no el 
 oficial de componentes ni los contratos de los proveedores. Estas decisiones permiten
 avanzar y deben ratificarse con el jefe de proyecto antes del ensamblaje.
 
-| Dato                | Decisión actual                          | Confirmación necesaria                           |
-| ------------------- | ---------------------------------------- | ------------------------------------------------ |
-| Responsable         | Grupo 8, STOCK                           | Coincide con la asignación recibida              |
-| Catálogo            | Productos, grupo 3                       | API oficial y semántica de productos habilitados |
-| Número del servicio | 2 según posición de STOCK en la imagen   | Documento de componentes                         |
-| Puertos locales     | Web 5120, API 5121                       | Número oficial del servicio                      |
-| Identidad           | JWT RS256/EdDSA mediante cookie o Bearer | Issuer, audience, JWKS y permisos oficiales      |
-| Namespace           | `pingeso` para módulo Go y npm           | Organización de GitHub del curso                 |
+| Dato                | Decisión actual                          | Confirmación necesaria                             |
+| ------------------- | ---------------------------------------- | -------------------------------------------------- |
+| Responsable         | Grupo 8, STOCK                           | Coincide con la asignación recibida                |
+| Catálogo            | Productos, grupo 3                       | API oficial y semántica de productos habilitados   |
+| Número del servicio | 2 según posición de STOCK en la imagen   | Documento de componentes                           |
+| Puertos locales     | Web 5120, API 5121                       | Número oficial del servicio                        |
+| Identidad           | JWT RS256/EdDSA mediante cookie o Bearer | Issuer, audience, JWKS y permisos oficiales        |
+| Namespace           | `@pingeso-ejecu` para npm y GHCR         | Confirmado: organización de GitHub `PINGESO-EJECU` |
 
 ## Productos
 
@@ -81,6 +81,8 @@ entre servicios pueden reenviar el JWT como Bearer. El proxy de la app web reenv
 ## Consumidores de STOCK
 
 Copiar el contrato publicado de esta versión, generar el cliente y llamar por REST.
+Mientras no tengan acceso a la API real, pueden simularla con Prism a partir de ese
+contrato (`pnpm mock:stock` en este repo; ver [mocks.md](mocks.md)).
 Mantener `Idempotency-Key` en todos los reintentos de una misma mutación y propagar
 `X-Request-Id`. Ante un 409 por falta de stock, mostrar el rechazo al usuario. Ante un
 409 de versión, volver a consultar antes de proponer otro ajuste. Ante un 503, reintentar
@@ -89,6 +91,6 @@ con la misma clave para evitar duplicados si el resultado anterior fue incierto.
 Una cancelación de una operación ya confirmada se registra con un movimiento inverso,
 otra clave y referencia al original. No existe un borrado administrativo del historial.
 
-Los consumidores pueden montar los microcomponentes de `@pingeso/stock-ui` bajo su
+Los consumidores pueden montar los microcomponentes de `@pingeso-ejecu/stock-ui` bajo su
 propio router. Deben proporcionar una URL base accesible desde el navegador, permisos y
 la sesión del usuario; los componentes no administran el login ni un estado global.
