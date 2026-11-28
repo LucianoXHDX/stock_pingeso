@@ -10,7 +10,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts
 COPY apps/web/ apps/web/
 COPY contracts/ contracts/
-RUN pnpm --filter @pingeso/stock-ui build
+RUN pnpm --filter @pingeso-ejecu/stock-ui build
 
 FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine3.23@sha256:23f198931d4bd83b4f5a613bd75656257ae8bf832dcbc2db80e1050b5219ca2a AS server-build
 WORKDIR /src

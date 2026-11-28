@@ -16,8 +16,8 @@ equivale al número de servicio. Falta el documento oficial de componentes para 
 esta asignación y los contratos finales de Productos e Identidad.
 
 `contracts/externos/productos.yaml` es una propuesta mínima para avanzar, **no un
-contrato entregado por el grupo proveedor**. El namespace `pingeso` del módulo Go y del
-paquete npm también debe confirmarse antes de publicar. La integración y las decisiones
+contrato entregado por el grupo proveedor**. El paquete npm usa el scope `@pingeso-ejecu`, que
+corresponde a la organización de GitHub `PINGESO-EJECU`. La integración y las decisiones
 están descritas en [docs/integracion.md](docs/integracion.md).
 
 ## Requisitos
@@ -129,14 +129,14 @@ mantiene un solo origen y reenvía las cookies.
 
 ## Microcomponentes
 
-El paquete `@pingeso/stock-ui` exporta `ConsultaStock`, `MovimientoStock` e
+El paquete `@pingeso-ejecu/stock-ui` exporta `ConsultaStock`, `MovimientoStock` e
 `HistorialStock`. Cada componente recibe `apiBaseUrl` y `permisos`; no depende del router
 ni del estado de la aplicación anfitriona. Los permisos visuales no sustituyen la
 autorización del servidor.
 
 ```tsx
-import { ConsultaStock, MovimientoStock, HistorialStock } from '@pingeso/stock-ui'
-import '@pingeso/stock-ui/estilos.css'
+import { ConsultaStock, MovimientoStock, HistorialStock } from '@pingeso-ejecu/stock-ui'
+import '@pingeso-ejecu/stock-ui/estilos.css'
 
 const permisos = ['stock:consultar', 'stock:operar']
 

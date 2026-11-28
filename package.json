@@ -8,13 +8,13 @@
     "pnpm": "10.13.1"
   },
   "scripts": {
-    "dev": "pnpm --filter @pingeso/stock-ui dev",
-    "build": "pnpm --filter @pingeso/stock-ui build && pnpm --filter @pingeso/stock-ui build:lib",
+    "dev": "pnpm --filter @pingeso-ejecu/stock-ui dev",
+    "build": "pnpm --filter @pingeso-ejecu/stock-ui build && pnpm --filter @pingeso-ejecu/stock-ui build:lib",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "oxlint --deny-warnings && node scripts/verificar-limites.mjs",
-    "typecheck": "pnpm --filter @pingeso/stock-ui typecheck",
-    "test": "pnpm --filter @pingeso/stock-ui test",
+    "typecheck": "pnpm --filter @pingeso-ejecu/stock-ui typecheck",
+    "test": "pnpm --filter @pingeso-ejecu/stock-ui test",
     "test:api": "node scripts/go.mjs test ./...",
     "test:e2e:api": "node scripts/test-e2e.mjs",
     "codegen": "node scripts/codegen.mjs",

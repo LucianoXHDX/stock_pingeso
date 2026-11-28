@@ -23,8 +23,8 @@ dependencias:
     variables: [AUTH_JWKS_URL, AUTH_ISSUER, AUTH_AUDIENCE]
     estado_contrato: claims-y-permisos-propuestos-pendientes-de-proveedor
 microcomponentes:
-  paquete: '@pingeso/stock-ui'
-  namespace_estado: pendiente-de-confirmar
+  paquete: '@pingeso-ejecu/stock-ui'
+  namespace_estado: confirmado-organizacion-PINGESO-EJECU
   componentes: [ConsultaStock, MovimientoStock, HistorialStock]
 datos_propios: [existencias, movimientos, auditoria]
 permisos: ['stock:consultar', 'stock:operar', 'stock:administrar']

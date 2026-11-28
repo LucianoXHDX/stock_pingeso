@@ -17,7 +17,7 @@ const tipos = spawnSync(
   process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
   [
     '--filter',
-    '@pingeso/stock-ui',
+    '@pingeso-ejecu/stock-ui',
     'exec',
     'openapi-typescript',
     '../../contracts/openapi.yaml',

@@ -264,7 +264,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           registry-url: https://npm.pkg.github.com
-          scope: '@pingeso'
+          scope: '@pingeso-ejecu'
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
         with:
@@ -291,6 +291,6 @@ jobs:
             cosign sign --yes "$digest"
           done
           pnpm install --frozen-lockfile
-          pnpm --filter @pingeso/stock-ui build:lib
-          pnpm --filter @pingeso/stock-ui publish --no-git-checks
+          pnpm --filter @pingeso-ejecu/stock-ui build:lib
+          pnpm --filter @pingeso-ejecu/stock-ui publish --no-git-checks
           gh release create "stock-${etiqueta}" release/* --target "$GITHUB_SHA" --title "Stock ${etiqueta}" --generate-notes
